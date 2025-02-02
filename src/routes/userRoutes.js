@@ -1,7 +1,7 @@
 // backend/routes/userRoutes.js
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, getUser, updateUser } = require('../controllers/userController'); // Adicione o updateUser
+const { registerUser, loginUser, getUser, updateUser, changePassword } = require('../controllers/userController');
 const { forgotPassword, resetPassword } = require('../controllers/passwordController');
 const auth = require('../middleware/auth');
 
@@ -16,6 +16,9 @@ router.get('/me', auth, getUser);
 
 // Rota para Atualizar Dados do Usuário (Protegida)
 router.put('/me', auth, updateUser);
+
+// **Rota para Alterar Senha (Protegida)**
+router.put('/change-password', auth, changePassword);
 
 // Rotas para redefinição de senha
 router.post('/forgot-password', forgotPassword);
