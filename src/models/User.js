@@ -15,6 +15,13 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    // Campos para redefinição de senha:
+    resetPasswordToken: {
+        type: String,
+    },
+    resetPasswordExpires: {
+        type: Date,
+    },
 }, {
     timestamps: true,
 });
