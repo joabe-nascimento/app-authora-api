@@ -18,22 +18,14 @@ app.use(
   })
 );
 app.use(express.json());
-
-// Middleware de Logging
 app.use(morgan("dev"));
+
+// Rota para servir arquivos estáticos da pasta 'uploads'
+app.use("/uploads", express.static("uploads"));
 
 // Rotas
 const userRoutes = require("./routes/userRoutes");
 app.use("/api/users", userRoutes);
-
-//app.post('/name', (req, res) => {
-// Acessando os dados enviados no corpo da requisição
-//    const { name } = req.body;
-//    console.log(`Nome recebido: ${name}`);
-
-//    // Respondendo com um status 200 (sucesso)
-//    res.status(200).json({ message: `Nome ${name} recebido com sucesso!` });
-//});
 
 // Conexão com o MongoDB
 mongoose
