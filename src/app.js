@@ -10,18 +10,14 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
 app.use(
   cors({
-    origin: "http://localhost:5173", // URL do front-end
+    origin: "http://localhost:5173", // URL do frontend
     credentials: true,
   })
 );
 app.use(express.json());
 app.use(morgan("dev"));
-
-// Rota para servir arquivos estáticos da pasta 'uploads'
-app.use("/uploads", express.static("uploads"));
 
 // Rotas
 const userRoutes = require("./routes/userRoutes");

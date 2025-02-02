@@ -189,24 +189,38 @@ exports.confirmEmailChange = async (req, res) => {
 };
 exports.updateProfilePhoto = async (req, res) => {
   try {
-    const userId = req.user.id; // Supõe que o middleware 'auth' define req.user
+    // Verifica se o usuário está autenticado e se possui um id
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ msg: "Usuário não autenticado" });
+    }
+    const userId = req.user.id;
+
+    // Verifica se o arquivo foi enviado
     if (!req.file) {
-      return res.status(400).json({ msg: 'Nenhum arquivo enviado' });
+      return res.status(400).json({ msg: "Nenhum arquivo enviado" });
     }
 
-    // Constrói a URL da imagem (ajusta de acordo com sua configuração)
-    const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    // Converte o arquivo para Base64
+    const base64Image = `data:${
+      req.file.mimetype
+    };base64,${req.file.buffer.toString("base64")}`;
 
     // Atualiza o usuário com a nova foto
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { photo: photoUrl },
+      { photo: base64Image },
       { new: true }
     );
 
+    if (!updatedUser) {
+      return res.status(404).json({ msg: "Usuário não encontrado" });
+    }
+
     return res.status(200).json(updatedUser);
   } catch (error) {
-    console.error('Erro ao atualizar foto do perfil:', error);
-    res.status(500).json({ msg: 'Erro interno do servidor' });
+    console.error("Erro ao atualizar foto do perfil:", error);
+    return res
+      .status(500)
+      .json({ msg: "Erro interno do servidor", error: error.message });
   }
 };
