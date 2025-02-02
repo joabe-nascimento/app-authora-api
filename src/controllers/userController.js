@@ -187,3 +187,26 @@ exports.confirmEmailChange = async (req, res) => {
     res.status(400).json({ msg: "Token inválido ou expirado." });
   }
 };
+exports.updateProfilePhoto = async (req, res) => {
+  try {
+    const userId = req.user.id; // Supõe que o middleware 'auth' define req.user
+    if (!req.file) {
+      return res.status(400).json({ msg: 'Nenhum arquivo enviado' });
+    }
+
+    // Constrói a URL da imagem (ajusta de acordo com sua configuração)
+    const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+
+    // Atualiza o usuário com a nova foto
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { photo: photoUrl },
+      { new: true }
+    );
+
+    return res.status(200).json(updatedUser);
+  } catch (error) {
+    console.error('Erro ao atualizar foto do perfil:', error);
+    res.status(500).json({ msg: 'Erro interno do servidor' });
+  }
+};
