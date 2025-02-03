@@ -1,11 +1,13 @@
+// backend/controllers/userController.js
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { promisify } = require("util");
 
+// Converte jwt.sign para async/promise
 const jwtSign = promisify(jwt.sign);
 
-// Helpers
+// Gera token JWT
 const generateToken = async (userId) => {
   return await jwtSign({ user: { id: userId } }, process.env.JWT_SECRET, {
     expiresIn: "1h",
@@ -26,188 +28,175 @@ const validateUserExists = async (email, res) => {
   return false;
 };
 
-// Controladores
+// ---------------------------------------------------
+// CONTROLADORES
+// ---------------------------------------------------
+
+/**
+ * @desc   Registra novo usuário
+ */
 exports.registerUser = async (req, res) => {
   const { name, email, password } = req.body;
-
   try {
     if (await validateUserExists(email, res)) return;
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = await User.create({
       name,
       email,
       password: hashedPassword,
     });
 
+    // Gera token
     const token = await generateToken(user.id);
-    res.status(201).json({ token });
+
+    // Prepara user sem senha
+    const userWithoutPassword = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      photo: user.photo,
+      createdAt: user.createdAt,
+    };
+
+    // Retorna { token, user }
+    return res.status(201).json({ token, user: userWithoutPassword });
   } catch (error) {
     handleServerError(res, error, "Erro no registro de usuário");
   }
 };
 
+/**
+ * @desc   Realiza login do usuário
+ */
 exports.loginUser = async (req, res) => {
   const { email, password } = req.body;
-
   try {
     const user = await User.findOne({ email });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    if (!user) {
       return res.status(401).json({ message: "Credenciais inválidas" });
     }
 
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(401).json({ message: "Credenciais inválidas" });
+    }
+
+    // Gera token
     const token = await generateToken(user.id);
-    res.json({ token });
+
+    // Monta objeto de usuário sem a senha
+    const userWithoutPassword = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      photo: user.photo,
+      createdAt: user.createdAt,
+    };
+
+    // Retorna { token, user }
+    return res.json({ token, user: userWithoutPassword });
   } catch (error) {
     handleServerError(res, error, "Erro no login de usuário");
   }
 };
 
+/**
+ * @desc   Retorna dados do usuário logado (ex: se quiser usar /me)
+ */
 exports.getUser = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
-    user
-      ? res.json(user)
-      : res.status(404).json({ message: "Usuário não encontrado" });
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+    return res.json(user);
   } catch (error) {
     handleServerError(res, error, "Erro ao buscar usuário");
   }
 };
 
+/**
+ * @desc   Atualiza dados do usuário (nome, email, etc.)
+ */
 exports.updateUser = async (req, res) => {
   const { name, email } = req.body;
-
   try {
     const user = await User.findById(req.user.id);
-    if (!user)
+    if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
+    }
 
     if (email && email !== user.email) {
       if (await validateUserExists(email, res)) return;
       user.email = email;
     }
-
     if (name) user.name = name;
 
     const updatedUser = await user.save();
-    res.json(await User.findById(updatedUser.id).select("-password"));
+    const userWithoutPassword = {
+      _id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      photo: updatedUser.photo,
+      createdAt: updatedUser.createdAt,
+    };
+
+    return res.json(userWithoutPassword);
   } catch (error) {
     handleServerError(res, error, "Erro ao atualizar usuário");
   }
 };
 
+/**
+ * @desc   Altera a senha do usuário logado
+ */
 exports.changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body;
-
   try {
-    // Encontra o usuário pelo ID fornecido pelo middleware de autenticação (req.user)
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ msg: "Usuário não encontrado" });
     }
 
-    // Verifica se a senha atual confere
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
       return res.status(400).json({ msg: "Senha atual incorreta" });
     }
 
-    // Criptografa a nova senha
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-    // Atualiza a senha do usuário
-    user.password = hashedPassword;
+    user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
 
-    res.json({ msg: "Senha atualizada com sucesso" });
+    return res.json({ msg: "Senha atualizada com sucesso" });
   } catch (error) {
     console.error("Erro ao alterar a senha:", error.message);
-    res.status(500).json({ msg: "Erro no servidor", error: error.message });
+    return res
+      .status(500)
+      .json({ msg: "Erro no servidor", error: error.message });
   }
 };
 
-// Solicitar mudança de email
-exports.requestEmailChange = async (req, res) => {
-  const { newEmail } = req.body;
-
-  try {
-    // Verifica se o novo email é diferente do atual
-    if (newEmail === req.user.email) {
-      return res
-        .status(400)
-        .json({ msg: "O novo email deve ser diferente do email atual." });
-    }
-
-    // Gera um token para a verificação
-    const token = jwt.sign(
-      { userId: req.user.id, newEmail },
-      process.env.EMAIL_CHANGE_SECRET, // Defina essa variável no .env
-      { expiresIn: "1h" }
-    );
-
-    // Cria o link de verificação (por exemplo, usando a URL do seu frontend)
-    const verificationLink = `${process.env.FRONTEND_URL}/confirm-email-change?token=${token}`;
-
-    // Envie o email para o novo endereço com o link de verificação
-    // Exemplo usando uma função fictícia sendEmail:
-    // await sendEmail(newEmail, "Confirmação de mudança de email", `Clique no link para confirmar sua mudança de email: ${verificationLink}`);
-    console.log("Link de verificação:", verificationLink); // Para fins de debug
-
-    res.json({
-      msg: "Um email de verificação foi enviado para o novo endereço.",
-    });
-  } catch (error) {
-    console.error("Erro ao solicitar mudança de email:", error.message);
-    res.status(500).json({ msg: "Erro no servidor", error: error.message });
-  }
-};
-
-// Confirmar mudança de email
-exports.confirmEmailChange = async (req, res) => {
-  const { token } = req.params;
-
-  try {
-    // Verifica o token usando a chave secreta definida
-    const decoded = jwt.verify(token, process.env.EMAIL_CHANGE_SECRET);
-    const { userId, newEmail } = decoded;
-
-    // Encontra o usuário e atualiza o email
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ msg: "Usuário não encontrado." });
-    }
-
-    user.email = newEmail;
-    await user.save();
-
-    res.json({ msg: "Email alterado com sucesso!" });
-  } catch (error) {
-    console.error("Erro na confirmação de email:", error.message);
-    res.status(400).json({ msg: "Token inválido ou expirado." });
-  }
-};
+/**
+ * @desc   Atualiza a foto de perfil do usuário
+ */
 exports.updateProfilePhoto = async (req, res) => {
   try {
-    // Verifica se o usuário está autenticado e se possui um id
-    if (!req.user || !req.user.id) {
+    if (!req.user?.id) {
       return res.status(401).json({ msg: "Usuário não autenticado" });
     }
-    const userId = req.user.id;
-
-    // Verifica se o arquivo foi enviado
     if (!req.file) {
       return res.status(400).json({ msg: "Nenhum arquivo enviado" });
     }
 
-    // Converte o arquivo para Base64
+    // Converte arquivo para Base64 (se for armazenar no DB)
     const base64Image = `data:${
       req.file.mimetype
     };base64,${req.file.buffer.toString("base64")}`;
 
-    // Atualiza o usuário com a nova foto
     const updatedUser = await User.findByIdAndUpdate(
-      userId,
+      req.user.id,
       { photo: base64Image },
       { new: true }
     );
@@ -216,11 +205,79 @@ exports.updateProfilePhoto = async (req, res) => {
       return res.status(404).json({ msg: "Usuário não encontrado" });
     }
 
-    return res.status(200).json(updatedUser);
+    // Retorna usuário sem password
+    const userWithoutPassword = {
+      _id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      photo: updatedUser.photo,
+      createdAt: updatedUser.createdAt,
+    };
+
+    return res.status(200).json(userWithoutPassword);
   } catch (error) {
     console.error("Erro ao atualizar foto do perfil:", error);
     return res
       .status(500)
       .json({ msg: "Erro interno do servidor", error: error.message });
+  }
+};
+
+/**
+ * @desc   Atualiza configurações do usuário (darkMode, language, etc.)
+ */
+exports.updateUserSettings = async (req, res) => {
+  try {
+    const {
+      username,
+      email,
+      currentPassword,
+      newPassword,
+      darkMode,
+      language,
+      emailNotifications,
+      pushNotifications,
+    } = req.body;
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ msg: "Usuário não encontrado" });
+    }
+
+    if (currentPassword) {
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ msg: "Senha atual incorreta" });
+      }
+
+      if (newPassword) {
+        if (newPassword.length < 6) {
+          return res
+            .status(400)
+            .json({ msg: "A nova senha deve ter pelo menos 6 caracteres" });
+        }
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPassword, salt);
+      }
+    }
+
+    if (username) user.name = username;
+    if (email) user.email = email;
+
+    // Ajuste para armazenar configurações
+    user.settings = {
+      darkMode,
+      language,
+      emailNotifications,
+      pushNotifications,
+    };
+
+    await user.save();
+    return res
+      .status(200)
+      .json({ msg: "Configurações atualizadas com sucesso" });
+  } catch (error) {
+    console.error("Erro ao atualizar configurações:", error);
+    return res.status(500).json({ msg: "Erro no servidor" });
   }
 };

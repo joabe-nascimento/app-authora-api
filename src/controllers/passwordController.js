@@ -1,8 +1,8 @@
 // backend/controllers/passwordController.js
-const User = require('../models/User');
-const crypto = require('crypto');
-const nodemailer = require('nodemailer');
-const bcrypt = require('bcryptjs');
+const User = require("../models/User");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+const bcrypt = require("bcryptjs");
 
 /**
  * Controller para solicitar a redefinição de senha.
@@ -12,18 +12,18 @@ exports.forgotPassword = async (req, res) => {
   const { email } = req.body;
 
   if (!email) {
-    return res.status(400).json({ msg: 'Email é obrigatório' });
+    return res.status(400).json({ msg: "Email é obrigatório" });
   }
 
   try {
     // Verifica se o usuário existe com o e-mail fornecido
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ msg: 'Usuário não encontrado' });
+      return res.status(400).json({ msg: "Usuário não encontrado" });
     }
 
     // Gera um token único para a redefinição de senha
-    const resetToken = crypto.randomBytes(20).toString('hex');
+    const resetToken = crypto.randomBytes(20).toString("hex");
 
     // Define a expiração do token (ex.: 1 hora a partir de agora)
     user.resetPasswordToken = resetToken;
@@ -35,7 +35,7 @@ exports.forgotPassword = async (req, res) => {
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST, // ex: 'smtp.gmail.com'
       port: process.env.SMTP_PORT, // ex: 587 ou 465
-      secure: process.env.SMTP_SECURE === 'true', // true se porta 465
+      secure: process.env.SMTP_SECURE === "true", // true se porta 465
       auth: {
         user: process.env.SMTP_USER, // seu e-mail
         pass: process.env.SMTP_PASS, // sua senha ou senha de app
@@ -46,18 +46,18 @@ exports.forgotPassword = async (req, res) => {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
     const mailOptions = {
-      from: process.env.FROM_EMAIL, // ex: "Suporte MyApp <seuemail@gmail.com>"
-      to: user.email,              // Envia para o e-mail cadastrado do usuário
-      subject: 'Redefinição de Senha',
+      from: process.env.FROM_EMAIL,
+      to: user.email, // Envia para o e-mail cadastrado do usuário
+      subject: "Redefinição de Senha",
       text: `Você solicitou a redefinição de senha. Clique no link abaixo para redefinir sua senha:\n\n${resetUrl}\n\nCaso não tenha solicitado, ignore este e-mail.`,
     };
 
     await transporter.sendMail(mailOptions);
 
-    res.status(200).json({ msg: 'E-mail de redefinição enviado com sucesso' });
+    res.status(200).json({ msg: "E-mail de redefinição enviado com sucesso" });
   } catch (error) {
-    console.error('Erro na solicitação de redefinição de senha:', error);
-    res.status(500).json({ msg: 'Erro interno do servidor ao enviar e-mail' });
+    console.error("Erro na solicitação de redefinição de senha:", error);
+    res.status(500).json({ msg: "Erro interno do servidor ao enviar e-mail" });
   }
 };
 
@@ -70,7 +70,7 @@ exports.resetPassword = async (req, res) => {
   const { password } = req.body;
 
   if (!password) {
-    return res.status(400).json({ msg: 'Senha é obrigatória' });
+    return res.status(400).json({ msg: "Senha é obrigatória" });
   }
 
   try {
@@ -82,8 +82,10 @@ exports.resetPassword = async (req, res) => {
     });
 
     if (!user) {
-      console.log("Nenhum usuário encontrado com token válido ou token expirado");
-      return res.status(400).json({ msg: 'Token inválido ou expirado' });
+      console.log(
+        "Nenhum usuário encontrado com token válido ou token expirado"
+      );
+      return res.status(400).json({ msg: "Token inválido ou expirado" });
     }
 
     // Criptografa a nova senha
@@ -97,9 +99,11 @@ exports.resetPassword = async (req, res) => {
 
     await user.save();
 
-    res.status(200).json({ msg: 'Senha redefinida com sucesso' });
+    res.status(200).json({ msg: "Senha redefinida com sucesso" });
   } catch (error) {
-    console.error('Erro ao redefinir senha:', error);
-    res.status(500).json({ msg: 'Erro interno do servidor ao redefinir senha' });
+    console.error("Erro ao redefinir senha:", error);
+    res
+      .status(500)
+      .json({ msg: "Erro interno do servidor ao redefinir senha" });
   }
 };
