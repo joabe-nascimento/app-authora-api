@@ -12,9 +12,9 @@ const verifyToken = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verifica o token
-    req.user = decoded; // Armazena as informações do usuário no objeto da requisição
-    next(); // Chama a próxima função (rota)
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
   } catch (error) {
     console.error("Token inválido:", error);
     return res.status(401).json({ message: "Token inválido" });
@@ -26,7 +26,7 @@ router.post("/", verifyToken, async (req, res) => {
   try {
     const newPassword = new Password({
       ...req.body,
-      userId: req.user.id, // Associar a senha ao usuário logado
+      userId: req.user.id,
     });
     await newPassword.save();
     return res.status(201).json({ message: "Senha salva com sucesso", newPassword });
@@ -40,7 +40,7 @@ router.post("/", verifyToken, async (req, res) => {
 router.put("/:id", verifyToken, async (req, res) => {
   try {
     const updatedPassword = await Password.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user.id }, // Verifica se a senha pertence ao usuário
+      { _id: req.params.id, userId: req.user.id },
       req.body,
       { new: true }
     );
@@ -61,7 +61,7 @@ router.delete("/:id", verifyToken, async (req, res) => {
   try {
     const deletedPassword = await Password.findOneAndDelete({
       _id: req.params.id,
-      userId: req.user.id, // Verifica se a senha pertence ao usuário logado
+      userId: req.user.id,
     });
 
     if (!deletedPassword) {
@@ -78,7 +78,7 @@ router.delete("/:id", verifyToken, async (req, res) => {
 // Rota GET para listar todas as senhas do usuário
 router.get("/", verifyToken, async (req, res) => {
   try {
-    const passwords = await Password.find({ userId: req.user.id }); // Filtra senhas para o usuário autenticado
+    const passwords = await Password.find({ userId: req.user.id });
     return res.status(200).json(passwords);
   } catch (error) {
     console.error("Erro ao obter senhas:", error);
