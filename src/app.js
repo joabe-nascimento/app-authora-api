@@ -36,4 +36,4 @@ mongoose
     console.error("❌ Erro ao conectar ao MongoDB:", error);
   });
 
-module.exports = app; // Para testes ou importações
+module.exports = app; 
