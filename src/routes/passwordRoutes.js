@@ -71,7 +71,21 @@ router.delete("/:id", async (req, res) => {
  */
 router.get("/", async (req, res) => {
   try {
-    const passwords = await Password.find();
+    // const passwords = await Password.find();
+    const passwords = await Password.find({ user_id: userId }); // Retorna só as senhas desse usuário
+    return res.status(200).json(passwords);
+  } catch (error) {
+    console.error("Erro ao obter senhas:", error);
+    return res.status(500).json({ message: "Erro ao obter senhas", error });
+  }
+});
+
+// Retorna apenas as senhas do usuário autenticado
+router.get("/", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id; // Pegando o ID do usuário autenticado
+    const passwords = await Password.find({ userId }); // Filtrando apenas as senhas desse usuário
+
     return res.status(200).json(passwords);
   } catch (error) {
     console.error("Erro ao obter senhas:", error);
