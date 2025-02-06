@@ -1,4 +1,3 @@
-// backend/app.js
 require("dotenv").config();
 
 const express = require("express");
@@ -13,7 +12,19 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+// Permite todas as origens, mesmo quando 'credentials' está true.
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Se não houver origem (ex.: requisições via Postman ou de mesmo domínio), permite.
+      if (!origin) return callback(null, true);
+      // Permite todas as origens
+      return callback(null, true);
+    },
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 app.use(morgan("dev"));
 
@@ -28,6 +39,7 @@ mongoose
   })
   .then(() => {
     console.log("✅ Conectado ao MongoDB");
+    // Se necessário, para que o serviço seja acessível externamente, você pode usar '0.0.0.0'
     app.listen(PORT, () => {
       console.log(`🚀 Servidor rodando na porta ${PORT}`);
     });
@@ -36,4 +48,4 @@ mongoose
     console.error("❌ Erro ao conectar ao MongoDB:", error);
   });
 
-module.exports = app; 
+module.exports = app;
