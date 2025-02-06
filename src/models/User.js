@@ -23,7 +23,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, "O campo 'password' é obrigatório."],
     },
-    // Campo para armazenar a foto de perfil (em base64 ou URL, dependendo da sua lógica)
     photo: {
       type: String,
       default: null,
