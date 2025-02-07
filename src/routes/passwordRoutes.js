@@ -1,81 +1,71 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const Password = require("../models/Password");
+const Password = require('../models/Password');
+const { verifyToken } = require('../middleware/authMiddleware'); // Middleware para verificar o token JWT
 
-/**
- * @desc  Cria uma nova senha
- * @route POST /api/passwords
- */
-router.post("/", async (req, res) => {
+// Obter todas as senhas do usuário autenticado
+router.get('/', verifyToken, async (req, res) => {
   try {
-    const newPassword = new Password(req.body);
-    await newPassword.save();
-    return res
-      .status(201)
-      .json({ message: "Senha salva com sucesso", newPassword });
-  } catch (error) {
-    console.error("Erro ao salvar senha:", error);
-    return res.status(500).json({ message: "Erro ao salvar a senha", error });
+    const passwords = await Password.find({ userId: req.user.id });
+    res.json(passwords);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 
-/**
- * @desc  Atualiza uma senha existente
- * @route PUT /api/passwords/:id
- */
-router.put("/:id", async (req, res) => {
-  try {
-    const updatedPassword = await Password.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
+// Criar uma nova senha
+router.post('/', verifyToken, async (req, res) => {
+  const { service, username, password, category } = req.body;
+  const newPassword = new Password({
+    service,
+    username,
+    password,
+    category,
+    userId: req.user.id,
+  });
 
-    if (!updatedPassword) {
-      return res.status(404).json({ message: "Senha não encontrada" });
+  try {
+    const savedPassword = await newPassword.save();
+    res.status(201).json(savedPassword);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Atualizar uma senha
+router.put('/:id', verifyToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const password = await Password.findOne({ _id: id, userId: req.user.id });
+
+    if (!password) {
+      return res.status(404).json({ message: 'Senha não encontrada' });
     }
 
-    return res
-      .status(200)
-      .json({ message: "Senha atualizada com sucesso", updatedPassword });
-  } catch (error) {
-    console.error("Erro ao atualizar senha:", error);
-    return res
-      .status(500)
-      .json({ message: "Erro ao atualizar a senha", error });
+    Object.assign(password, req.body);
+    const updatedPassword = await password.save();
+    res.json(updatedPassword);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
   }
 });
 
-/**
- * @desc  Exclui uma senha
- * @route DELETE /api/passwords/:id
- */
-router.delete("/:id", async (req, res) => {
-  try {
-    const deletedPassword = await Password.findByIdAndDelete(req.params.id);
+// Deletar uma senha
+router.delete('/:id', verifyToken, async (req, res) => {
+  const { id } = params;
 
-    if (!deletedPassword) {
-      return res.status(404).json({ message: "Senha não encontrada" });
+  try {
+    const password = await Password.findOne({ _id: id, userId: req.user.id });
+
+    if (!password) {
+      return res.status(404).json({ message: 'Senha não encontrada' });
     }
 
-    return res.status(200).json({ message: "Senha excluída com sucesso" });
-  } catch (error) {
-    console.error("Erro ao excluir senha:", error);
-    return res.status(500).json({ message: "Erro ao excluir a senha", error });
-  }
-});
-
-/**
- * @desc  Retorna todas as senhas
- * @route GET /api/passwords
- */
-router.get("/", async (req, res) => {
-  try {
-    const passwords = await Password.find();
-    return res.status(200).json(passwords);
-  } catch (error) {
-    console.error("Erro ao obter senhas:", error);
-    return res.status(500).json({ message: "Erro ao obter senhas", error });
+    await password.remove();
+    res.json({ message: 'Senha removida com sucesso' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 

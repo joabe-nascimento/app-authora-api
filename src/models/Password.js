@@ -1,8 +1,3 @@
-/**
- * File: backend/models/Password.js
- * Description: Modelo Mongoose para armazenamento de senhas relacionadas a serviços.
- */
-
 const mongoose = require("mongoose");
 
 const passwordSchema = new mongoose.Schema(
@@ -26,6 +21,11 @@ const passwordSchema = new mongoose.Schema(
       type: String,
       default: null,
       trim: true,
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
     },
   },
   {
